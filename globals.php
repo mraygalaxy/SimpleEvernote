@@ -34,13 +34,13 @@
 		global $consumerSecret;
 
 		if ($evernoteHost == "")
-			die("evernotehost not configured properly.");
+			die("evernotehost not configured properly. - Try to <a href='everlogin.php'>Re-Login</a>");
 		if ($evernoteHost == "")
-			die("evernotehost not configured properly.");
+			die("evernotehost not configured properly. - Try to <a href='everlogin.php'>Re-Login</a>");
 		if ($consumerKey == "")
-			die("consumerkey not configured properly.");
+			die("consumerkey not configured properly. - Try to <a href='everlogin.php'>Re-Login</a>");
 		if ($consumerSecret == "")
-			die("consumersecret not configured properly.");
+			die("consumersecret not configured properly. - Try to <a href='everlogin.php'>Re-Login</a>");
 		$userStoreHttpClient =
 		  new THttpClient($evernoteHost, $evernotePort, "/edam/user", $evernoteScheme);
 		$userStoreProtocol = new TBinaryProtocol($userStoreHttpClient);
@@ -152,7 +152,7 @@
 		}
 
 		if(!$target)
-			die("Could not find note in notebook with title $title\n");
+			die("Could not find note in notebook with title $title - Try to <a href='everlogin.php'>Re-Login</a>\n");
 
 		return $target;
 	}
@@ -164,8 +164,9 @@
 		try {
 			$note = $noteStore->getNote($authToken, $target->guid,
 				true, false, false, false);
-			$data = preg_replace("#(.*\<en-note\>|\<\/en-note\>)#", "", $note->content);
-			$result = preg_replace("/\<br\/\>/", "\n", $data);
+			$data = preg_replace("/(.*<en-note>|<\/en-note>|<br clear=\"none\"\/>)/ms", "", $note->content);
+			$data = preg_replace("/\<br\/>/", "\n", $data);
+			$result = $data;
 		} catch(Exception $e) {
 			die('Exception during getNoteContent: '. $e->getMessage() . "<a href='everlogin.php'>Re-Login</a>");
 		}
