@@ -1,0 +1,7 @@
+Simple Evernote - poor man's evernote:
+
+USAGE:
+
+1. Copy "rename_this_to_prefs.php" to "prefs.php"
+2. Edit prefs.php to suite your website and your evernote API key.
+3. Point your browser to evernote.php and try it!
