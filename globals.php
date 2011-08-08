@@ -166,6 +166,7 @@
 				true, false, false, false);
 			$data = preg_replace("/(.*<en-note>|<\/en-note>|<br clear=\"none\"\/>)/ms", "", $note->content);
 			$data = preg_replace("/\<br\/>/", "\n", $data);
+			$data = strip_tags($data);
 			$result = $data;
 		} catch(Exception $e) {
 			die('Exception during getNoteContent: '. $e->getMessage() . "<a href='everlogin.php'>Re-Login</a>");
