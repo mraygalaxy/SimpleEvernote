@@ -164,8 +164,8 @@
 		try {
 			$note = $noteStore->getNote($authToken, $target->guid,
 				true, false, false, false);
-			$data = preg_replace("/(.*<en-note>|<\/en-note>|<br clear=\"none\"\/>)/ms", "", $note->content);
-			$data = preg_replace("/\<br\/>/", "\n", $data);
+			$data = preg_replace("/(.*<en-note>|<\/en-note>)/ms", "", $note->content);
+			$data = preg_replace("/<br clear=\"none\"\/>/", "\n", $data);
 			$data = strip_tags($data);
 			$result = $data;
 		} catch(Exception $e) {
@@ -179,9 +179,9 @@
 		list($noteStore, $authToken, $title) = getEvernoteParms();
 		$target = getEvernoteTarget();
 		$target->content = 
-		  '<?xml version="1.0" encoding="UTF-8"?>' .
-		  '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">' .
-		  '<en-note>'.preg_replace("/\n/", "<br/>", $contents).'</en-note>';
+		  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" .
+		  "<!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\">" .
+		  "<en-note>".preg_replace("/\n/", "<br clear=\"none\"/>", $contents)."</en-note>";
 		try {
 			$noteStore->updateNote($authToken,$target);
 		} catch(Exception $e) {
