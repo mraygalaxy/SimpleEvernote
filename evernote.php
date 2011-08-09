@@ -1,25 +1,6 @@
 <?php
 
    include_once "globals.php";
-   if(isset($_GET["target"])) {
-	$target=$_GET["target"];
-       	if($target == "michael_work") {
-			$title="work";
-			$username="darkbeethoven";
-	} else if($target == "michael_personal") {
-			$title="personal";
-			$username="darkbeethoven";
-	} else if($target == "chen_work") {
-			$title="what_is_name_of_your_work_note";
-			$username="chengehines";
-	} else if($target == "chen_personal") {
-			$title="what_is_name_of_your_personal_note";
-			$username="chengehines";
-	}
-   } else {
-	$title=(isset($_GET["title"]) ? $_GET["title"] : (isset($_SESSION["title"]) ? $_SESSION["title"] : "which_note_would_you_like"));
-	$username=(isset($_GET["username"]) ? $_GET["username"] : (isset($_SESSION["username"]) ? $_SESSION["username"] : "username"));
-   }
 
    if(!$in) {
 	die("<meta http-equiv=Refresh content='1; url=everlogin.php?username=$username&title=$title'>");
@@ -33,6 +14,7 @@
 	   $enotes = getDefaultNote();
    }
 
+   evernote_refresh();
    if(!isset($_GET["norefresh"]))
 	echo "<meta http-equiv=Refresh content='1; url=evernote.php?norefresh&username=$username&title=$title'>";
 ?>

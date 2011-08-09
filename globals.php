@@ -26,6 +26,28 @@
 	require_once("packages/UserStore/UserStore_constants.php");
 	require_once("packages/NoteStore/NoteStore.php");
 
+	   if(isset($_GET["target"])) {
+		$target=$_GET["target"];
+		if($target == "michael_work") {
+				$title="work";
+				$username="darkbeethoven";
+		} else if($target == "michael_personal") {
+				$title="personal";
+				$username="darkbeethoven";
+		} else if($target == "chen_work") {
+				$title="what_is_name_of_your_work_note";
+				$username="chengehines";
+		} else if($target == "chen_personal") {
+				$title="what_is_name_of_your_personal_note";
+				$username="chengehines";
+		}
+	   } else {
+		$title=(isset($_GET["title"]) ? $_GET["title"] : (isset($_SESSION["title"]) ? $_SESSION["title"] : "which_note_would_you_like"));
+		$username=(isset($_GET["username"]) ? $_GET["username"] : (isset($_SESSION["username"]) ? $_SESSION["username"] : "username"));
+	   }
+
+	   $relogin=" - <a href='everlogin.php?username=$username&title=$title'>Re-login</a>";
+
 	function evernote_connect($euser, $epass) {
 		global $evernoteHost;
 		global $evernotePort;
@@ -41,19 +63,23 @@
 			die("consumerkey not configured properly. - Try to <a href='everlogin.php'>Re-Login</a>");
 		if ($consumerSecret == "")
 			die("consumersecret not configured properly. - Try to <a href='everlogin.php'>Re-Login</a>");
-		$userStoreHttpClient =
-		  new THttpClient($evernoteHost, $evernotePort, "/edam/user", $evernoteScheme);
-		$userStoreProtocol = new TBinaryProtocol($userStoreHttpClient);
-		$userStore = new UserStoreClient($userStoreProtocol, $userStoreProtocol);
+		try {
+			$userStoreHttpClient =
+			  new THttpClient($evernoteHost, $evernotePort, "/edam/user", $evernoteScheme);
+			$userStoreProtocol = new TBinaryProtocol($userStoreHttpClient);
+			$userStore = new UserStoreClient($userStoreProtocol, $userStoreProtocol);
 
-		// Connect to the service and check the protocol version
-		$versionOK =
-		  $userStore->checkVersion("PHP EDAMTest",
-					   $GLOBALS['UserStore_CONSTANTS']['EDAM_VERSION_MAJOR'],
-					   $GLOBALS['UserStore_CONSTANTS']['EDAM_VERSION_MINOR']);
-		if ($versionOK == 0) {
-		  print "ERROR: My EDAM protocol version is not up to date!";
-		  exit(1);
+			// Connect to the service and check the protocol version
+			$versionOK =
+			  $userStore->checkVersion("PHP EDAMTest",
+						   $GLOBALS['UserStore_CONSTANTS']['EDAM_VERSION_MAJOR'],
+						   $GLOBALS['UserStore_CONSTANTS']['EDAM_VERSION_MINOR']);
+			if ($versionOK == 0) {
+			  print "ERROR: My EDAM protocol version is not up to date!";
+			  exit(1);
+			}
+		} catch (Exception $e) {
+			die( "Failed to login: ". $e->getMessage() . "<a href='everlogin.php'>Re-Login</a>");
 		}
 
 		// Authenticate the user
@@ -91,9 +117,34 @@
 		  exit(1);
 		}
 
-		$user = $authResult->user;
-		$authToken = $authResult->authenticationToken;
-		return array($authToken, $user->shardId);
+		$_SESSION["evertoken"] = $authResult->authenticationToken;
+		$_SESSION["everShard"] = $authResult->user->shardId;
+	}
+	function evernote_refresh() {
+		global $evernoteHost;
+		global $evernotePort;
+		global $evernoteScheme;
+		global $consumerKey;
+		global $consumerSecret;
+		global $relogin;
+		list($noteStore, $authToken, $title) = getEvernoteParms();
+
+		try {
+			$userStoreHttpClient =
+			  new THttpClient($evernoteHost, $evernotePort, "/edam/user", $evernoteScheme);
+			$userStoreProtocol = new TBinaryProtocol($userStoreHttpClient);
+			$userStore = new UserStoreClient($userStoreProtocol, $userStoreProtocol);
+		} catch (Exception $e) {
+			die( "Failed to refresh login: ". $e->getMessage() . " <a href='everlogin.php'>Re-Login</a>");
+		}
+
+		// Authenticate the user
+		try {
+		  $authResult = $userStore->refreshAuthentication($authToken);
+		  $_SESSION["evertoken"] = $authResult->authenticationToken;
+		} catch (Exception $e) {
+			die( "Failed to refresh login: ". $e->getMessage() . $relogin);
+		}
 	}
 
 	function getEvernoteParms() {
@@ -101,28 +152,30 @@
 	   global $evernotePort;
 	   global $evernoteScheme;
 
-	   $authToken = $_SESSION["evertoken"];
-	   $everShard = $_SESSION["everShard"];
-	   $title = $_SESSION["title"];
-	   $noteStoreHttpClient =
-	  	new THttpClient($evernoteHost, $evernotePort,
-			"/edam/note/" . $everShard, 
-			$evernoteScheme);
-	   $noteStoreProtocol = new TBinaryProtocol(
-		   $noteStoreHttpClient);
-	   $noteStore = new NoteStoreClient($noteStoreProtocol, 
-		   $noteStoreProtocol);
+	   try {
+		   $noteStoreHttpClient =
+			new THttpClient($evernoteHost, $evernotePort,
+				"/edam/note/" . $_SESSION["everShard"], 
+				$evernoteScheme);
+		   $noteStoreProtocol = new TBinaryProtocol(
+			   $noteStoreHttpClient);
+		   $noteStore = new NoteStoreClient($noteStoreProtocol, 
+			   $noteStoreProtocol);
+	   } catch(Exception $e) {
+		die('Exception creating note store: ' . $e->getMessage() . $relogin);
+	   }
 
-	   return array($noteStore, $authToken, $title);
+	   return array($noteStore, $_SESSION["evertoken"], $_SESSION["title"]);
 	}
 
 	function getEvernoteTarget($title) {
+		global $relogin;
 		list($noteStore, $authToken, $title) = getEvernoteParms();
 
 		try {
 			$notebooks = $noteStore->listNotebooks($authToken);
 		} catch(Exception $e) {
-			die('Exception during listNotebooks: '. $e->getMessage() . "<a href='everlogin.php'>Re-Login</a>");
+			die('Exception during listNotebooks: ' .  $e->getMessage() . $relogin);
 		}
 
 		foreach ($notebooks as $notebook) {
@@ -140,7 +193,7 @@
 		try {
 			$noteList = $noteStore->findNotes($authToken, $filter, 0, 1000);
 	} catch(Exception $e) {
-			die('Exception during findNotes: '. $e->getMessage() . "<a href='everlogin.php'>Re-Login</a>");
+			die('Exception during findNotes: '. $e->getMessage() . $relogin);
 		}
 
 		$target=false;
@@ -152,12 +205,13 @@
 		}
 
 		if(!$target)
-			die("Could not find note in notebook with title $title - Try to <a href='everlogin.php'>Re-Login</a>\n");
+			die("Could not find note in notebook with title $title - Try to $relogin\n");
 
 		return $target;
 	}
 
 	function getDefaultNote() {
+		global $relogin;
 		list($noteStore, $authToken, $title) = getEvernoteParms();
 		$target = getEvernoteTarget($title);
 
@@ -169,13 +223,14 @@
 			$data = strip_tags($data);
 			$result = $data;
 		} catch(Exception $e) {
-			die('Exception during getNoteContent: '. $e->getMessage() . "<a href='everlogin.php'>Re-Login</a>");
+			die('Exception during getNoteContent: '. $e->getMessage() . $relogin);
 		}
 
 		return $result;
 	}
 
 	function updateDefaultNote($contents) {
+		global $relogin;
 		list($noteStore, $authToken, $title) = getEvernoteParms();
 		$target = getEvernoteTarget();
 		$target->content = 
@@ -185,7 +240,7 @@
 		try {
 			$noteStore->updateNote($authToken,$target);
 		} catch(Exception $e) {
-			die('Exception during updateNote: '. $e->getMessage() . "<a href='everlogin.php'>Re-Login</a>");
+			die('Exception during updateNote: '. $e->getMessage() . $relogin);
 		}
 	}
 
@@ -200,4 +255,6 @@
 	    array_walk_recursive($_COOKIE, 'stripslashes_gpc');
 	    array_walk_recursive($_REQUEST, 'stripslashes_gpc');
 	}
+
+
 ?>

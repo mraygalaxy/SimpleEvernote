@@ -20,10 +20,8 @@
 	}
 
 	if(isset($_POST["pass"])) {
-		list($authToken,$everShard) = evernote_connect($username, $_POST["pass"]);
+		evernote_connect($username, $_POST["pass"]);
 		session_register("admin");
-		$_SESSION["evertoken"] = $authToken;
-		$_SESSION["everShard"] = $everShard;
 		$_SESSION["title"] = $title;
 		$_SESSION["username"] = $username;
 		header("Location: evernote.php?username=$username&title=$title");
