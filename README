@@ -1,5 +1,16 @@
 Simple Evernote - poor man's evernote:
 
+This interface was designed to take *one* *specific* note from your default
+notebook and keep it open inside of a textbox permanently. I use it this way
+because I don't like separating my notes into many tiny little notes, but I am
+rather scatter-brained and I like quick access to a single, massive note which I
+can type random ideas into instantly and hit save without having to navigate
+across several different buttons or links just to update a single note. I use
+this interface inside of a google-gadget, which stays open permanently
+throughout the day when I'm at home or work. So, whenever I have a line of text
+that I don't want to forget, I can just the idea directly into a pre-opened text
+box and followed a quick keystroke to"tab" then "enter" to save immediately.
+
 USAGE:
 
 1. Copy "rename_this_to_prefs.php" to "prefs.php"
