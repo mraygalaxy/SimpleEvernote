@@ -29,11 +29,11 @@
 ?>
 <html>
 <head>
-<title>Simple Evernote - Evernote for Dummies</title>
+<title>Evernote: <?php echo $username."/".$title;?></title>
 </head>
 <body>
 <center>
-<form style="display: inline" action="everlogin.php" method="post">
+<form style="display: inline" action="everlogin.php?username=<?php echo $username; ?>&title=<?php echo $title; ?>" method="post">
 <table width="200">
 <tr><td>Username: </td><td><input type="text" name="username" value="<?php echo $username; ?>"></td></tr>
 <tr><td>Password: </td><td><input type="password" name="pass"></td></tr>

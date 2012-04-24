@@ -26,43 +26,26 @@
 	require_once("packages/UserStore/UserStore_constants.php");
 	require_once("packages/NoteStore/NoteStore.php");
 
-	   if(isset($_GET["target"])) {
-		$target=$_GET["target"];
-		if($target == "michael_work") {
-				$title="work";
-				$username="darkbeethoven";
-		} else if($target == "michael_personal") {
-				$title="personal";
-				$username="darkbeethoven";
-		} else if($target == "chen_work") {
-				$title="what_is_name_of_your_work_note";
-				$username="chengehines";
-		} else if($target == "chen_personal") {
-				$title="what_is_name_of_your_personal_note";
-				$username="chengehines";
-		}
-	   } else {
-		$title=(isset($_GET["title"]) ? $_GET["title"] : (isset($_SESSION["title"]) ? $_SESSION["title"] : "which_note_would_you_like"));
-		$username=(isset($_GET["username"]) ? $_GET["username"] : (isset($_SESSION["username"]) ? $_SESSION["username"] : "username"));
-	   }
-
 	   $relogin=" - <a href='everlogin.php?username=$username&title=$title'>Re-login</a>";
-
+	   $autologin="<meta http-equiv=Refresh content='1; url=everlogin.php?username=$username&title=$title'>";
+        
 	function evernote_connect($euser, $epass) {
 		global $evernoteHost;
 		global $evernotePort;
 		global $evernoteScheme;
 		global $consumerKey;
 		global $consumerSecret;
+		global $relogin;
+		global $autologin;
 
 		if ($evernoteHost == "")
-			die("evernotehost not configured properly. - Try to <a href='everlogin.php'>Re-Login</a>");
+			die($autologin . " \n evernotehost not configured properly." . $relogin);
 		if ($evernoteHost == "")
-			die("evernotehost not configured properly. - Try to <a href='everlogin.php'>Re-Login</a>");
+			die($autologin . " \n evernotehost not configured properly." . $relogin);
 		if ($consumerKey == "")
-			die("consumerkey not configured properly. - Try to <a href='everlogin.php'>Re-Login</a>");
+			die($autologin . " \n consumerkey not configured properly." . $relogin);
 		if ($consumerSecret == "")
-			die("consumersecret not configured properly. - Try to <a href='everlogin.php'>Re-Login</a>");
+			die($autologin . " \n consumersecret not configured properly." . $relogin);
 		try {
 			$userStoreHttpClient =
 			  new THttpClient($evernoteHost, $evernotePort, "/edam/user", $evernoteScheme);
@@ -79,7 +62,7 @@
 			  exit(1);
 			}
 		} catch (Exception $e) {
-			die( "Failed to login: ". $e->getMessage() . "<a href='everlogin.php'>Re-Login</a>");
+			die( $autologin . " \n Failed to login: ". $e->getMessage() . $relogin);
 		}
 
 		// Authenticate the user
@@ -119,15 +102,16 @@
 
 		$_SESSION["evertoken"] = $authResult->authenticationToken;
 		$_SESSION["everShard"] = $authResult->user->shardId;
+		getNoteList();
 	}
-	function evernote_refresh() {
+	function evernote_refresh($noteStore, $authToken) {
 		global $evernoteHost;
 		global $evernotePort;
 		global $evernoteScheme;
 		global $consumerKey;
 		global $consumerSecret;
 		global $relogin;
-		list($noteStore, $authToken, $title) = getEvernoteParms();
+		global $autologin;
 
 		try {
 			$userStoreHttpClient =
@@ -143,7 +127,7 @@
 		  $authResult = $userStore->refreshAuthentication($authToken);
 		  $_SESSION["evertoken"] = $authResult->authenticationToken;
 		} catch (Exception $e) {
-			die( "Failed to refresh login: ". $e->getMessage() . $relogin);
+			die($autologin . " \n Failed to refresh login: ". $e->getMessage() . $relogin);
 		}
 	}
 
@@ -151,7 +135,8 @@
 	   global $evernoteHost;
 	   global $evernotePort;
 	   global $evernoteScheme;
-
+	   global $relogin;
+	   global $autologin;
 	   try {
 		   $noteStoreHttpClient =
 			new THttpClient($evernoteHost, $evernotePort,
@@ -162,38 +147,70 @@
 		   $noteStore = new NoteStoreClient($noteStoreProtocol, 
 			   $noteStoreProtocol);
 	   } catch(Exception $e) {
-		die('Exception creating note store: ' . $e->getMessage() . $relogin);
+		die($autologin . ' \n Exception creating note store: ' . $e->getMessage() . $relogin);
 	   }
 
 	   return array($noteStore, $_SESSION["evertoken"], $_SESSION["title"]);
 	}
-
-	function getEvernoteTarget($title) {
+	function getNoteList() {
 		global $relogin;
+		global $autologin;
 		list($noteStore, $authToken, $title) = getEvernoteParms();
-
+		
+		$defaultNotebook = getDefaultNotebook($noteStore, $authToken);
+		$filter = new edam_notestore_NoteFilter();
+		$filter->inactive = false;
+		$filter->notebookGuid = $defaultNotebook;
 		try {
-			$notebooks = $noteStore->listNotebooks($authToken);
+			$noteList = $noteStore->findNotes($authToken, $filter, 0, 1000);
 		} catch(Exception $e) {
-			die('Exception during listNotebooks: ' .  $e->getMessage() . $relogin);
+			die($autologin . ' \n Exception during getNoteList: '. $e->getMessage() . $relogin);
 		}
+		$notelist = "";
+		foreach ($noteList->notes as $note) {
+			$notelist = $notelist . "," . $note->title;
+		}
+		$_SESSION["notelist"] = $notelist;
+	}
 
-		foreach ($notebooks as $notebook) {
-		  if ($notebook->defaultNotebook) {
-		    $defaultNotebook = $notebook;
-		    $foundDefault=true;
-		  }
-		}
+	function getDefaultNotebook($noteStore, $authToken) {
+		global $relogin;
+		global $autologin;
+
+		if(!isset($_SESSION["defaultNotebook"])) {
+			try {
+				$notebooks = $noteStore->listNotebooks($authToken);
+			} catch(Exception $e) {
+				die($autologin . ' \n Exception during listNotebooks: ' .  $e->getMessage() . $relogin);
+			}
+	
+			foreach ($notebooks as $notebook) {
+			  if ($notebook->defaultNotebook) {
+				$_SESSION["defaultNotebook"] = $notebook->guid;
+			 	return $notebook->guid;
+			  }
+			}
+		} else {
+			return $_SESSION["defaultNotebook"];
+		}	
+		die($autologin . " \n Could not get default notebook with title $title - Try to $relogin\n");
+	}
+
+	function getEvernoteTarget($title, $noteStore, $authToken) {
+		global $relogin;
+		global $autologin;
+				
+		$defaultNotebook = getDefaultNotebook($noteStore, $authToken);
 
 		$result = "";
 
 		$filter = new edam_notestore_NoteFilter();
 		$filter->inactive = false;
-		$filter->notebookGuid = $defaultNotebook->guid;
+		$filter->notebookGuid = $defaultNotebook;
 		try {
 			$noteList = $noteStore->findNotes($authToken, $filter, 0, 1000);
-	} catch(Exception $e) {
-			die('Exception during findNotes: '. $e->getMessage() . $relogin);
+		} catch(Exception $e) {
+			die($autologin . ' \n Exception during findNotes: '. $e->getMessage() . $relogin);
 		}
 
 		$target=false;
@@ -205,43 +222,79 @@
 		}
 
 		if(!$target)
-			die("Could not find note in notebook with title $title - Try to $relogin\n");
+			die($autologin . " \n Could not find note in notebook with title $title - Try to $relogin\n");
 
 		return $target;
 	}
 
-	function getDefaultNote() {
+	function convert_to_ascii($data) {
+		$result = "";
+		for ($i = 0; $i < strlen($data); $i++) {
+			$value = substr($data, $i, 1);
+			$num = ord($value);
+			if ( $num == 10 ) {
+				$result = $result . "\n";
+			} else {
+				$result = $result . $num . " ";
+			}
+		}	
+		return $result;
+	}
+
+	function getNote($title) {
 		global $relogin;
-		list($noteStore, $authToken, $title) = getEvernoteParms();
-		$target = getEvernoteTarget($title);
+		global $autologin;
+		list($noteStore, $authToken, $defaulttitle) = getEvernoteParms();
+		$target = getEvernoteTarget($title, $noteStore, $authToken);
 
 		try {
 			$note = $noteStore->getNote($authToken, $target->guid,
 				true, false, false, false);
 			$data = preg_replace("/(.*<en-note>|<\/en-note>)/ms", "", $note->content);
+			//$data = preg_replace("/Â/ms", "", $data);
+			$data = preg_replace("/".chr(194)."/ms", "", $data);
+			$data = preg_replace("/".chr(160)."/ms", "", $data);
+			$data = preg_replace("/".chr(13)."/ms", "", $data);
+			$data = preg_replace("/".chr(32)."\n/ms", "", $data);
 			$data = preg_replace("/<br clear=\"none\"\/>/", "\n", $data);
+			$data = preg_replace("/<br\/>/", "\n", $data);
 			$data = strip_tags($data);
+			$data = preg_replace("/\n([A-Z,0-9])/ms", "NEWLINEPLACEHOLDER\\1", $data);
+			$data = preg_replace("/^ /ms", "", $data);
+			$data = preg_replace("/^".chr(32)."\n/ms", "", $data);
+			$data = preg_replace("/".chr(32)."\n/ms", "\n", $data);
+			$data = preg_replace("/\n\n+/ms", "\n", $data);
+			$data = preg_replace("/NEWLINEPLACEHOLDER/", "\n", $data);
 			$result = $data;
+			/* Use this loop to discover wierd ascii codes that don't belong to the text */
+			//$result = convert_to_ascii($data);
+
 		} catch(Exception $e) {
-			die('Exception during getNoteContent: '. $e->getMessage() . $relogin);
+			die($autologin . ' \n Exception during getNoteContent: '. $e->getMessage() . $relogin);
 		}
+
+		evernote_refresh($noteStore, $authToken);
 
 		return $result;
 	}
 
-	function updateDefaultNote($contents) {
+	function updateNote($title, $contents) {
 		global $relogin;
-		list($noteStore, $authToken, $title) = getEvernoteParms();
-		$target = getEvernoteTarget();
+		global $autologin;
+		list($noteStore, $authToken, $defaulttitle) = getEvernoteParms();
+		$target = getEvernoteTarget($title, $noteStore, $authToken);
+		$contents = preg_replace("/&/ms", "&amp;", $contents);
+		$contents = preg_replace("/\n/", "<br clear=\"none\"/>", $contents);
 		$target->content = 
 		  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" .
 		  "<!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\">" .
-		  "<en-note>".preg_replace("/\n/", "<br clear=\"none\"/>", $contents)."</en-note>";
+		  "<en-note>".$contents."</en-note>";
 		try {
 			$noteStore->updateNote($authToken,$target);
 		} catch(Exception $e) {
-			die('Exception during updateNote: '. $e->getMessage() . $relogin);
+			die($autologin . ' \n Exception during updateNote: '. $e->getMessage() . $relogin);
 		}
+		evernote_refresh($noteStore, $authToken);
 	}
 
 	/* Disable that goddamn magic quotes bullshit. */
@@ -255,6 +308,4 @@
 	    array_walk_recursive($_COOKIE, 'stripslashes_gpc');
 	    array_walk_recursive($_REQUEST, 'stripslashes_gpc');
 	}
-
-
 ?>
