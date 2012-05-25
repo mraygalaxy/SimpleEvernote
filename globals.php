@@ -1,7 +1,7 @@
 <?php
 	include_once "prefs.php";
-	$evernotePort = "80";
-	$evernoteScheme = "http";
+	$evernotePort = "443";
+	$evernoteScheme = "https";
 
 	if(!session_is_registered("session")) {
 		session_start();
