@@ -1,7 +1,7 @@
 <?php
 	include_once "prefs.php";
-	$evernotePort = "443";
-	$evernoteScheme = "https";
+	$evernotePort = "80";
+	$evernoteScheme = "http";
 
 	if(!session_is_registered("session")) {
 		session_start();
@@ -11,7 +11,13 @@
 
 	$in = session_is_registered("admin");
 
-	ini_set("include_path", ini_get("include_path") . PATH_SEPARATOR . "everlib" . PATH_SEPARATOR);
+	use EDAM\UserStore\UserStoreClient;
+	use EDAM\NoteStore\NoteStoreClient;
+	use EDAM\NoteStore\NoteFilter;
+	use EDAM\Types\Data, EDAM\Types\Note, EDAM\Types\Resource, EDAM\Types\ResourceAttributes;
+	use EDAM\Error\EDAMUserException, EDAM\Error\EDAMErrorCode;
+
+	ini_set("include_path", ini_get("include_path") . PATH_SEPARATOR . "lib" . PATH_SEPARATOR);
 
 	require_once("autoload.php");
 	require_once("Thrift.php");
@@ -25,9 +31,10 @@
 	require_once("packages/UserStore/UserStore.php");
 	require_once("packages/UserStore/UserStore_constants.php");
 	require_once("packages/NoteStore/NoteStore.php");
+	require_once("packages/Limits/Limits_constants.php");
 
 	   $relogin=" - <a href='everlogin.php?username=$username&title=$title'>Re-login</a>";
-	   $autologin="<meta http-equiv=Refresh content='1; url=everlogin.php?username=$username&title=$title'>";
+	   $autologin="";//"<meta http-equiv=Refresh content='1; url=everlogin.php?username=$username&title=$title'>";
         
 	function evernote_connect($euser, $epass) {
 		global $evernoteHost;
@@ -55,8 +62,8 @@
 			// Connect to the service and check the protocol version
 			$versionOK =
 			  $userStore->checkVersion("PHP EDAMTest",
-						   $GLOBALS['UserStore_CONSTANTS']['EDAM_VERSION_MAJOR'],
-						   $GLOBALS['UserStore_CONSTANTS']['EDAM_VERSION_MINOR']);
+						   $GLOBALS['EDAM_UserStore_UserStore_CONSTANTS']['EDAM_VERSION_MAJOR'],
+						   $GLOBALS['EDAM_UserStore_UserStore_CONSTANTS']['EDAM_VERSION_MINOR']);
 			if ($versionOK == 0) {
 			  print "ERROR: My EDAM protocol version is not up to date!";
 			  exit(1);
@@ -158,7 +165,7 @@
 		list($noteStore, $authToken, $title) = getEvernoteParms();
 		
 		$defaultNotebook = getDefaultNotebook($noteStore, $authToken);
-		$filter = new edam_notestore_NoteFilter();
+		$filter = new NoteFilter();
 		$filter->inactive = false;
 		$filter->notebookGuid = $defaultNotebook;
 		try {
@@ -204,7 +211,7 @@
 
 		$result = "";
 
-		$filter = new edam_notestore_NoteFilter();
+		$filter = new NoteFilter();
 		$filter->inactive = false;
 		$filter->notebookGuid = $defaultNotebook;
 		try {
